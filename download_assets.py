@@ -1,8 +1,11 @@
 """One-time setup: download the translation model and dictionary, then build the dictionary DB."""
+import io
 import subprocess
 import sys
+import urllib.request
+import zipfile
 
-from huggingface_hub import snapshot_download
+from huggingface_hub import hf_hub_download, snapshot_download
 
 from app import config
 from app.dictionary import build
@@ -18,6 +21,29 @@ for folder, repo, size in DOWNLOADS:
     if not (folder / "model.bin").exists():
         print(f"Downloading {repo} ({size})...")
         snapshot_download(repo, local_dir=folder, allow_patterns=FILES)
+
+# Optional: Typhoon Translate (better quality, ~2.5 GB) + llama.cpp runtime. Pass --typhoon.
+LLAMA_CPP_BUILD = "b11433"
+if "--typhoon" in sys.argv:
+    if not config.TYPHOON_MODEL.exists():
+        print("Downloading Typhoon Translate 1.5 4B (~2.5 GB)...")
+        hf_hub_download("scb10x/typhoon-translate1.5-4b-gguf", config.TYPHOON_MODEL.name,
+                        local_dir=config.TYPHOON_MODEL.parent)
+    # CPU build always; Vulkan build lets Typhoon run on the graphics card
+    for flavour, exe in (("cpu", config.LLAMA_SERVERS["cpu"]), ("vulkan", config.LLAMA_SERVERS["gpu"])):
+        if exe.exists():
+            continue
+        name = f"llama-{LLAMA_CPP_BUILD}-bin-win-{flavour}-x64.zip"
+        print(f"Downloading llama.cpp {LLAMA_CPP_BUILD} ({name})...")
+        url = f"https://github.com/ggml-org/llama.cpp/releases/download/{LLAMA_CPP_BUILD}/{name}"
+        with urllib.request.urlopen(url, timeout=300) as r:
+            archive = zipfile.ZipFile(io.BytesIO(r.read()))
+        target = exe.parent.resolve()
+        for member in archive.namelist():
+            # Refuse entries that would land outside the target folder (zip slip)
+            if not (target / member).resolve().is_relative_to(target):
+                raise SystemExit(f"Unsafe path in archive: {member}")
+        archive.extractall(target)
 
 if not config.LEXITRON_SRC.exists():
     print("Downloading LEXiTRON dictionary...")

@@ -15,6 +15,7 @@ LEXITRON_SRC = DATA_DIR / "_lexitron_src" / "etlex.utf-8"
 DICT_DB = DATA_DIR / "lexitron.db"
 VOCAB_DB = DATA_DIR / "vocab.db"
 GLOSSARY_DIR = ROOT / "glossary"
+GLOSSARY_IMPORTED_DIR = DATA_DIR / "glossary_imported"   # terms imported from game files
 
 # NLLB language codes
 SRC_LANG = "eng_Latn"
@@ -32,3 +33,13 @@ HOTKEYS = {
     "rescan": (("ctrl", "shift"), "R"),   # scan the last area again
     "toggle": (("ctrl", "shift"), "H"),   # hide/show the result popup
 }
+
+# Typhoon Translate (optional, better quality, slower) run by llama.cpp's llama-server
+TYPHOON_MODEL = ROOT / "models" / "typhoon-translate" / "typhoon-translate1.5-4b-q4_k_m.gguf"
+# llama.cpp builds: CPU, and Vulkan for running on the graphics card (AMD/NVIDIA/Intel)
+LLAMA_SERVERS = {
+    "cpu": ROOT / "tools" / "llama-cpu" / "llama-server.exe",
+    "gpu": ROOT / "tools" / "llama-vulkan" / "llama-server.exe",
+}
+TYPHOON_THREADS = 4     # default CPU threads; leave some CPU for the game
+ENGINE_TYPHOON = "Typhoon 4B (แม่นสุด)"   # engine label in the model menu

@@ -6,7 +6,7 @@ from datetime import datetime
 from PySide6.QtCore import QRect, Qt, QUrl, Signal
 from PySide6.QtGui import QColor, QFont, QPainter, QPen, QPixmap
 from PySide6.QtWidgets import (QAbstractItemView, QCheckBox, QComboBox, QDialog, QDialogButtonBox, QFormLayout,
-                               QHBoxLayout, QHeaderView, QInputDialog, QLabel, QLineEdit, QPushButton,
+                               QHBoxLayout, QHeaderView, QInputDialog, QLabel, QLineEdit, QMenu, QPushButton,
                                QSplitter, QTableWidget, QTableWidgetItem, QTextBrowser, QVBoxLayout,
                                QWidget)
 
@@ -132,27 +132,49 @@ class TranslationView(QWidget):
         self.sentences, self.words = [], []
         self.text.setHtml(f"<p style='color:#9fb3d1'>{html.escape(msg)}</p>")
 
-    SOURCE_TAG = {"glossary": "ศัพท์เกม", "dict": "พจนานุกรม"}
+    SOURCE_TAG = {"glossary": "ศัพท์เกม", "dict": "พจนานุกรม", "typhoon": "Typhoon"}
 
-    def show_result(self, pairs: list[tuple[str, str, str]]):
-        """pairs: (english, thai, source) where source is nllb / glossary / dict / none."""
-        self.sentences = pairs
-        self.words = [WORD_RE.findall(en) for en, _, _ in pairs]
+    def show_result(self, pairs: list[tuple[str, str, str, list, bool]]):
+        """pairs: (english, thai, source, idioms, pending); source is nllb / glossary /
+        typhoon / none, idioms are (idiom, thai meaning, extra) found in the sentence,
+        pending marks sentences that Typhoon is still re-translating."""
+        self.sentences = [list(p) for p in pairs]
+        self.words = [WORD_RE.findall(p[0]) for p in pairs]
+        self.detail.setHtml(self.DETAIL_HINT)
+        self._render()
+
+    def update_sentence(self, index: int, thai: str, source: str, pending: bool = False):
+        """Replace one sentence's translation (Typhoon wrote more of it) and redraw."""
+        if 0 <= index < len(self.sentences):
+            self.sentences[index][1:3] = [thai, source]
+            self.sentences[index][4] = pending
+            scroll = self.text.verticalScrollBar().value()
+            self._render()
+            self.text.verticalScrollBar().setValue(scroll)
+
+    def _render(self):
+        pairs = self.sentences
         if not pairs:
             self.show_message("ไม่พบข้อความภาษาอังกฤษในพื้นที่ที่เลือก")
             return
         parts = []
-        for si, (en, th, source) in enumerate(pairs):
+        for si, (en, th, source, idioms, pending) in enumerate(pairs):
             if source == "none":      # numbers, versions... shown as-is
                 parts.append(f"<p style='margin:0 0 12px 0; color:#6f86ad'>{html.escape(en)}</p>")
                 continue
             tag = (f" <span style='color:#6f86ad; font-size:9pt'>({self.SOURCE_TAG[source]})</span>"
                    if source in self.SOURCE_TAG else "")
+            if pending:
+                tag = " <span style='color:#6f86ad; font-size:9pt'>⏳ กำลังแปล...</span>"
             parts.append(f"<p style='margin:0 0 2px 0'>{self._linkify(si, en)}</p>"
                          f"<p style='margin:0 0 12px 0; color:#ffd36b; font-size:14pt'>{html.escape(th)}{tag}"
                          f" <a href='alt:{si}' style='color:#6f86ad; font-size:9pt'>[แปลแบบอื่น]</a></p>")
+            for idiom, meaning, extra in idioms:
+                more = f" — {html.escape(extra)}" if extra else ""
+                parts.append(f"<p style='margin:-8px 0 12px 0; color:#b9f57f; font-size:11pt'>💡 มีสำนวน "
+                             f"<i>{html.escape(idiom)}</i> = {html.escape(meaning)}{more} "
+                             "<span style='color:#6f86ad'>(คำแปลด้านบนอาจแปลตรงตัว)</span></p>")
         self.text.setHtml("".join(parts))
-        self.detail.setHtml(self.DETAIL_HINT)
 
     def _linkify(self, si: int, sentence: str) -> str:
         """Turn every English word into a link while keeping punctuation/spaces as-is."""
@@ -165,14 +187,16 @@ class TranslationView(QWidget):
         out.append(html.escape(sentence[last:]))
         return "".join(out)
 
-    def show_word(self, word: str, base: str, entries: list[dict], phrases: list):
+    def show_word(self, word: str, base: str, entries: list[dict], phrases: list, note: str | None = None):
         h = [f"<p style='margin:0'><b style='font-size:17pt; color:#7fd4ff'>{html.escape(word)}</b>"]
         if base.lower() != word.lower():
             h.append(f" <span style='color:#9fb3d1'>(รูปพื้นฐาน: {html.escape(base)})</span>")
         h.append(f" &nbsp;<a href='add:{html.escape(base)}' style='color:#b9f57f; font-size:10pt'>"
                  "[+ เพิ่มลงศัพท์เกม]</a></p>")
+        if note:
+            h.append(f"<p style='margin:4px 0; color:#b9f57f'>💡 {html.escape(note)}</p>")
         if not entries:
-            h.append("<p style='color:#9fb3d1'>ไม่พบคำนี้ในพจนานุกรม (อาจเป็นชื่อเฉพาะในเกม)</p>")
+            h.append("<p style='color:#9fb3d1'>ไม่พบคำนี้ในพจนานุกรม LEXiTRON (อาจเป็นชื่อเฉพาะ, ศัพท์ในเกม หรือ OCR อ่านผิด)</p>")
         h.append(self._entries_html(entries))
         for phrase, p_entries in phrases:
             h.append(f"<p style='margin:12px 0 0 0'><b style='color:#b9f57f'>วลี: {html.escape(phrase)}</b></p>")
@@ -287,6 +311,8 @@ class GlossaryView(QWidget):
     """Edit the per-game glossary (terms that must always be translated a fixed way)."""
     profile_changed = Signal(str)        # profile name, "" = no glossary
     saved = Signal(str, dict)            # profile name, terms
+    import_requested = Signal(str)       # "mojang" / "folder" / "files"
+    clear_import_requested = Signal()
     COLS = ("คำ / วลีภาษาอังกฤษ", "ให้แปลเป็น (ไทย หรือคงชื่ออังกฤษ)")
 
     def __init__(self):
@@ -300,6 +326,23 @@ class GlossaryView(QWidget):
         top.addWidget(self.profile, 1)
         top.addWidget(new_btn)
         self.auto_names = QCheckBox("คงชื่อเฉพาะเป็นภาษาอังกฤษอัตโนมัติ (คำขึ้นต้นตัวใหญ่ เช่น Ancient Debris, Pan Et Rosa)")
+
+        # Names imported from the game's own language files
+        self.imported_label = QLabel()
+        import_btn = QPushButton("📥 นำเข้าจากไฟล์ภาษาเกม ▾")
+        menu = QMenu(import_btn)
+        menu.addAction("ดาวน์โหลดชื่อไทยทางการของ Minecraft (ไม่ต้องมีเกมในเครื่อง)",
+                       lambda: self.import_requested.emit("mojang"))
+        menu.addAction("จากโฟลเดอร์เกม / instance ของ launcher (รวม mod ทั้งหมด)...",
+                       lambda: self.import_requested.emit("folder"))
+        menu.addAction("จากไฟล์ .jar ของ mod...", lambda: self.import_requested.emit("files"))
+        import_btn.setMenu(menu)
+        clear_btn = QPushButton("ล้างคำที่นำเข้า")
+        clear_btn.clicked.connect(self.clear_import_requested)
+        import_row = QHBoxLayout()
+        import_row.addWidget(self.imported_label, 1)
+        import_row.addWidget(import_btn)
+        import_row.addWidget(clear_btn)
 
         self.table = QTableWidget(0, 2)
         self.table.setHorizontalHeaderLabels(self.COLS)
@@ -327,9 +370,19 @@ class GlossaryView(QWidget):
         lay.setContentsMargins(6, 6, 6, 6)
         lay.addLayout(top)
         lay.addWidget(self.auto_names)
+        lay.addLayout(import_row)
+        lay.addWidget(QLabel("คำที่เพิ่มเอง (มีผลเหนือคำที่นำเข้า):"))
         lay.addWidget(self.table, 1)
         lay.addLayout(bottom)
         lay.addWidget(hint)
+
+    def set_imported(self, count: int, info: dict):
+        if count:
+            self.imported_label.setText(
+                f"นำเข้าจากเกมแล้ว <b>{count}</b> คำ <span style='color:#6f86ad'>"
+                f"({html.escape(info.get('source', ''))}, {html.escape(info.get('date', ''))})</span>")
+        else:
+            self.imported_label.setText("<span style='color:#6f86ad'>ยังไม่ได้นำเข้าชื่อจากไฟล์เกม</span>")
 
     def set_profiles(self, names: list[str], current: str | None):
         self.profile.clear()

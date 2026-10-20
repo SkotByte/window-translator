@@ -1,5 +1,7 @@
 """Text recognition using the OCR engine built into Windows 10/11 (no download needed)."""
 import asyncio
+import re
+from typing import Callable
 
 from winrt.windows.globalization import Language
 from winrt.windows.graphics.imaging import BitmapPixelFormat, SoftwareBitmap
@@ -34,3 +36,36 @@ class WindowsOcr:
 
     async def _recognize_async(self, bitmap):
         return await self.engine.recognize_async(bitmap)
+
+
+# Letter shapes OCR typically confuses; each pair is tried in both directions
+_CONFUSIONS = (("rn", "m"), ("cl", "d"), ("vv", "w"), ("li", "h"), ("l", "i"), ("I", "l"),
+               ("0", "o"), ("1", "l"), ("5", "s"))
+_WORD = re.compile(r"[A-Za-z0-9]{4,}")
+
+
+def _variants(word: str):
+    for a, b in _CONFUSIONS:
+        for src, dst in ((a, b), (b, a)):
+            start = word.find(src)
+            while start != -1:
+                yield word[:start] + dst + word[start + len(src):]
+                start = word.find(src, start + 1)
+
+
+def fix_ocr_words(line: str, is_known: Callable[[str], bool]) -> str:
+    """Repair typical OCR slips ("leaming" -> "learning") using the dictionary.
+
+    Only lowercase words (names are left alone) that are not dictionary words are
+    touched, and only when a single confusable-letter swap turns them into one.
+    """
+    def fix(m):
+        word = m.group()
+        if word[0].isupper() or not word[1:].islower() or is_known(word):
+            return word
+        for candidate in _variants(word):
+            if candidate.isalpha() and is_known(candidate):
+                return candidate
+        return word
+
+    return _WORD.sub(fix, line)
