@@ -39,7 +39,7 @@ build_exe.bat
 Creates `dist\WindowTranslator\WindowTranslator.exe` (PyInstaller, one folder, no console).
 `models\`, `data\` and `tools\` are linked next to the exe (directory junctions), so the models
 are not copied. To move the app to another PC, copy the whole `dist\WindowTranslator` folder and
-replace the three links with the real folders. Errors are written to `datapp.log`.
+replace the three links with the real folders. Errors are written to `data\app.log`.
 
 ## Use
 Run `run.bat`. If the translator shares a monitor with the game, run the game in
