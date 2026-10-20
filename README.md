@@ -32,6 +32,15 @@ python -m venv .venv
 `download_assets.py` downloads the NLLB model from Hugging Face and the LEXiTRON dictionary
 from [tlwg/dict-lexitron](https://github.com/tlwg/dict-lexitron), then builds the dictionary database.
 
+## Build a Windows .exe (optional)
+```
+build_exe.bat
+```
+Creates `dist\WindowTranslator\WindowTranslator.exe` (PyInstaller, one folder, no console).
+`models\`, `data\` and `tools\` are linked next to the exe (directory junctions), so the models
+are not copied. To move the app to another PC, copy the whole `dist\WindowTranslator` folder and
+replace the three links with the real folders. Errors are written to `datapp.log`.
+
 ## Use
 Run `run.bat`. If the translator shares a monitor with the game, run the game in
 **Borderless** or **Windowed** mode and use 📌 to keep the translator on top.

@@ -3,3 +3,6 @@ models/
 data/
 __pycache__/
 tools/
+build/
+dist/
+*.spec

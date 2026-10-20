@@ -1,7 +1,10 @@
 """Paths and settings shared by the whole app."""
+import sys
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parent.parent
+# Built .exe (PyInstaller): models/, data/, tools/ and glossary/ sit next to the .exe
+FROZEN = getattr(sys, "frozen", False)
+ROOT = Path(sys.executable).resolve().parent if FROZEN else Path(__file__).resolve().parent.parent
 DATA_DIR = ROOT / "data"
 # Translation models (CTranslate2 int8). Label shown in the UI -> folder
 MODELS = {

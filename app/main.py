@@ -714,6 +714,10 @@ class App(QMainWindow):
 
 
 def main():
+    if config.FROZEN and sys.stdout is None:
+        # A windowed .exe has no console; keep errors in a log file instead of losing them
+        config.DATA_DIR.mkdir(exist_ok=True)
+        sys.stdout = sys.stderr = open(config.DATA_DIR / "app.log", "a", encoding="utf-8", buffering=1)
     if not config.DICT_DB.exists():
         print("Building dictionary database (first run only)...")
         build_dictionary(config.LEXITRON_SRC, config.DICT_DB)
