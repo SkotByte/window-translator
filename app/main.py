@@ -13,7 +13,7 @@ from pathlib import Path
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 
-from PySide6.QtCore import QObject, QPoint, QRect, QSettings, Qt, QTimer, Signal
+from PySide6.QtCore import QLocale, QObject, QPoint, QRect, QSettings, Qt, QTimer, Signal
 from PySide6.QtGui import QCursor, QGuiApplication, QImage, QScreen
 from PySide6.QtWidgets import (QApplication, QComboBox, QSpinBox, QFileDialog, QHBoxLayout, QInputDialog,
                                QLabel, QMainWindow, QPushButton, QTabWidget, QVBoxLayout, QWidget)
@@ -716,6 +716,9 @@ def main():
     if not config.DICT_DB.exists():
         print("Building dictionary database (first run only)...")
         build_dictionary(config.LEXITRON_SRC, config.DICT_DB)
+    # Qt formats numbers with the Windows locale; on a Lao/Thai system that means ໔ / ๔
+    # in spin boxes. Use English number formatting everywhere (text stays Thai).
+    QLocale.setDefault(QLocale(QLocale.English, QLocale.UnitedStates))
     app = QApplication(sys.argv)
     app.setStyleSheet(APP_STYLE)
     window = App()
