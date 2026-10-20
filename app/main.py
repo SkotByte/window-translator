@@ -184,6 +184,7 @@ class App(QMainWindow):
         self.threads_spin = QSpinBox()
         self.threads_spin.setRange(1, os.cpu_count() or 4)
         self.threads_spin.setValue(self.typhoon.threads)
+        self.threads_spin.setMinimumWidth(70)    # room for the number beside the arrows
         self.threads_spin.setToolTip("จำนวนเธรด CPU ที่ Typhoon ใช้ — น้อย = เกมลื่นกว่า, มาก = แปลเร็วกว่า")
         self.threads_spin.editingFinished.connect(lambda: self.on_typhoon_threads(self.threads_spin.value()))
         row2.addWidget(QLabel("รันบน:"))

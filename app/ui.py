@@ -25,6 +25,9 @@ APP_STYLE = f"""
     QPushButton:checked {{ background: #4b6fb0; }}
     QComboBox {{ background: #1e2333; border: 1px solid #3a4a66; border-radius: 4px; padding: 4px 8px; }}
     QComboBox QAbstractItemView {{ background: #1e2333; selection-background-color: #3b4a70; }}
+    QSpinBox {{ background: #1e2333; border: 1px solid #3a4a66; border-radius: 4px;
+               padding: 4px 22px 4px 8px; min-width: 2em; }}
+    QSpinBox::up-button, QSpinBox::down-button {{ width: 18px; }}
     QTabWidget::pane {{ border: 1px solid #2a3550; border-radius: 6px; }}
     QTabBar::tab {{ background: #1a1f2c; padding: 6px 16px; border-top-left-radius: 6px; border-top-right-radius: 6px; }}
     QTabBar::tab:selected {{ background: #2a3550; }}
