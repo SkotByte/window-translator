@@ -1,1 +1,63 @@
 # window-translator
+
+Offline English → Thai screen translator for games, with built-in vocabulary learning.
+Select English text in any window, get a Thai translation, click words to see dictionary
+meanings, and review the words you looked up with spaced-repetition flashcards.
+
+Everything runs locally on the CPU — no internet connection or API key is needed after setup.
+
+## Features
+- **One window** (best placed on a second monitor) with tabs: Translate, Review, Vocabulary, Game glossary
+- **Target window picker**: lock onto the game window; the selected area follows the window when it moves
+- **OCR** with the engine built into Windows (`Windows.Media.Ocr`)
+- **Offline translation** with NLLB-200 (600M fast, or 1.3B more fluent), via CTranslate2 int8
+- **Click any word** for meanings, part of speech, synonyms and phrasal verbs (LEXiTRON dictionary)
+- **Game glossary** per game: fixed translations for game terms (`chest = หีบ`, `creeper = Creeper`)
+- **Proper names kept in English automatically** (e.g. `Ancient Debris`, `Pan Et Rosa`)
+- **Flashcards** (simplified SM-2) built from every word you looked up, with the sentence you met it in
+- The app window is excluded from screen capture, so it never ends up in its own OCR
+
+## Requirements
+- Windows 10 (2004+) or 11, with the English language pack (for OCR)
+- Python 3.11+
+- ~2 GB disk (600M model) or ~3.5 GB with the 1.3B model; 4 GB+ free RAM
+
+## Setup (once)
+```
+python -m venv .venv
+.venv\Scripts\python -m pip install -r requirements.txt
+.venv\Scripts\python download_assets.py            # add --large for the 1.3B model
+```
+`download_assets.py` downloads the NLLB model from Hugging Face and the LEXiTRON dictionary
+from [tlwg/dict-lexitron](https://github.com/tlwg/dict-lexitron), then builds the dictionary database.
+
+## Use
+Run `run.bat`. If the translator shares a monitor with the game, run the game in
+**Borderless** or **Windowed** mode and use 📌 to keep the translator on top.
+
+| Hotkey | Action |
+|---|---|
+| Ctrl+Shift+T | Drag to select a text area |
+| Ctrl+Shift+R | Scan the last area again (dialogue boxes) |
+| Ctrl+Shift+H | Minimize / restore the translator window |
+
+Review shortcuts: `Space` reveal, `1` again, `2` hard, `3` good, `4` easy.
+
+## Project layout
+```
+app/main.py         main window, OCR -> translate pipeline
+app/ui.py           widgets: selection overlay, translate / review / vocabulary / glossary tabs
+app/translator.py   NLLB via CTranslate2 (+ Thai normalization, loop detection)
+app/glossary.py     per-game glossary and automatic proper-name protection
+app/dictionary.py   LEXiTRON lookup and simple lemmatizer
+app/vocab.py        vocabulary store and spaced-repetition scheduling
+app/ocr.py          Windows OCR wrapper
+app/winapi.py       window list, window/monitor geometry, capture exclusion
+app/hotkeys.py      global hotkeys (RegisterHotKey)
+glossary/*.json     game glossaries (editable in the app)
+```
+
+## Licenses of downloaded data
+Models and dictionary data are **not** included in this repository.
+- NLLB-200 (Meta): CC-BY-NC 4.0 — non-commercial use only
+- LEXiTRON (NECTEC): © NECTEC, see the license in the downloaded `data/_lexitron_src/LICENSE`
