@@ -8,8 +8,9 @@ import sentencepiece as spm
 _SENTENCE_SPLIT = re.compile(r"(?<=[.!?])\s+(?=[A-Z0-9\"'“])")
 
 
-# Thai digits -> 0-9; everyday Thai uses Arabic digits
-THAI_DIGITS = str.maketrans("\u0e50\u0e51\u0e52\u0e53\u0e54\u0e55\u0e56\u0e57\u0e58\u0e59", "0123456789")
+# Thai digits and Lao digits (the model sometimes writes those too) -> 0-9
+THAI_DIGITS = str.maketrans("\u0e50\u0e51\u0e52\u0e53\u0e54\u0e55\u0e56\u0e57\u0e58\u0e59"
+                            "\u0ed0\u0ed1\u0ed2\u0ed3\u0ed4\u0ed5\u0ed6\u0ed7\u0ed8\u0ed9", "0123456789" * 2)
 
 
 def normalize_thai(text: str) -> str:
